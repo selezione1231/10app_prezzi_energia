@@ -1,0 +1,14 @@
+node_modules
+data/raw
+data/processed
+data/export
+models
+__pycache__
+*.py
+*.pyc
+*.sqlite
+*.csv
+*.parquet
+*.zip
+.git
+.vercel
