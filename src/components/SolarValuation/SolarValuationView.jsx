@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../supabaseClient'
 import { parsePVGISFile, generateSyntheticPVProfile } from '../../lib/pvgisParser'
+import { parsePVGISPdf } from '../../lib/pvgisPdfParser'
 import { runSolarBacktest } from '../../lib/solarBacktest'
 import { exportToExcel } from '../../lib/excelExport'
 import { exportToPDF } from '../../lib/pdfExport'
 import {
   Sun, Upload, Play, FileSpreadsheet, FileText, Save, CheckCircle2,
-  TrendingUp, Zap, Euro, Clock, AlertTriangle, ArrowUpRight, BarChart2
+  TrendingUp, Zap, Euro, Clock, AlertTriangle, ArrowUpRight, BarChart2, Info
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -20,6 +21,7 @@ export default function SolarValuationView({ user }) {
   const [uploadMode, setUploadMode] = useState('synthetic') // 'upload' | 'synthetic'
   const [pvgisData, setPvgisData] = useState(null)
   const [fileName, setFileName] = useState('')
+  const [pdfMeta, setPdfMeta] = useState(null)
   const [presetPeriod, setPresetPeriod] = useState('5y')
   const [startDate, setStartDate] = useState('2021-08-01')
   const [endDate, setEndDate] = useState('2026-07-31')
@@ -66,26 +68,48 @@ export default function SolarValuationView({ user }) {
     }
   }
 
-  // Upload file PVGIS
-  function handleFileUpload(e) {
+  // Upload file PVGIS (Supporto CSV, TXT, JSON e PDF)
+  async function handleFileUpload(e) {
     const file = e.target.files?.[0]
     if (!file) return
 
     setFileName(file.name)
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      try {
-        const text = event.target?.result
-        const parsed = parsePVGISFile(text, file.name)
-        setPvgisData(parsed)
-        if (parsed.metadata.nominalPowerKw && parsed.metadata.nominalPowerKw !== 1) {
-          setPowerKw(parsed.metadata.nominalPowerKw)
+    setPdfMeta(null)
+
+    const isPdf = file.name.toLowerCase().endsWith('.pdf')
+
+    if (isPdf) {
+      const reader = new FileReader()
+      reader.onload = async (event) => {
+        try {
+          const arrayBuffer = event.target?.result
+          const parsed = await parsePVGISPdf(arrayBuffer, file.name)
+          setPvgisData(parsed)
+          setPdfMeta(parsed.metadata)
+          if (parsed.metadata.nominalPowerKw && parsed.metadata.nominalPowerKw !== 1) {
+            setPowerKw(parsed.metadata.nominalPowerKw)
+          }
+        } catch (err) {
+          alert('Errore nel parsing del PDF PVGIS: ' + err.message)
         }
-      } catch (err) {
-        alert('Errore nel file PVGIS: ' + err.message)
       }
+      reader.readAsArrayBuffer(file)
+    } else {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        try {
+          const text = event.target?.result
+          const parsed = parsePVGISFile(text, file.name)
+          setPvgisData(parsed)
+          if (parsed.metadata.nominalPowerKw && parsed.metadata.nominalPowerKw !== 1) {
+            setPowerKw(parsed.metadata.nominalPowerKw)
+          }
+        } catch (err) {
+          alert('Errore nel file PVGIS: ' + err.message)
+        }
+      }
+      reader.readAsText(file)
     }
-    reader.readAsText(file)
   }
 
   // Esegui simulazione
@@ -186,7 +210,7 @@ export default function SolarValuationView({ user }) {
             Backtest Ricavi & Prezzo Catturato Solare (Range fino a 5 Anni)
           </h2>
           <p className="text-blue-100 text-sm mt-2 leading-relaxed">
-            Incrocia la curva di produzione solare PVGIS con i prezzi orari reali del mercato zonale MGP.
+            Supporta il caricamento di file orari <b>PVGIS (PDF, CSV, TXT, JSON)</b>.
             Calcola la scomposizione per <b>trimestre (Q1..Q4)</b> e per <b>anno</b>, il <i>Capture Rate</i> e genera i report per la stampa in <b>Excel</b> e <b>PDF</b>.
           </p>
         </div>
@@ -249,7 +273,7 @@ export default function SolarValuationView({ user }) {
               </div>
             </div>
 
-            {/* Profilo PVGIS */}
+            {/* Profilo PVGIS con supporto PDF */}
             <div className="pt-2 border-t border-slate-100">
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
                 2. Profilo Solare (PVGIS)
@@ -276,26 +300,40 @@ export default function SolarValuationView({ user }) {
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  📁 Carica PVGIS
+                  📁 Carica PDF / CSV
                 </button>
               </div>
 
               {uploadMode === 'upload' ? (
-                <div className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-4 text-center transition bg-slate-50">
-                  <input
-                    type="file"
-                    id="pvgis-file-input"
-                    accept=".csv,.txt,.json"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  <label htmlFor="pvgis-file-input" className="cursor-pointer block">
-                    <Upload className="w-7 h-7 text-blue-600 mx-auto mb-1.5" />
-                    <span className="text-xs font-medium text-blue-600 hover:underline">
-                      {fileName || 'Trascina qui il file PVGIS (.csv/.txt)'}
-                    </span>
-                    <p className="text-[11px] text-slate-400 mt-1">File orario PVGIS-SARAH2 o PVGIS-ERA5</p>
-                  </label>
+                <div className="space-y-2">
+                  <div className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-4 text-center transition bg-slate-50">
+                    <input
+                      type="file"
+                      id="pvgis-file-input"
+                      accept=".pdf,.csv,.txt,.json"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <label htmlFor="pvgis-file-input" className="cursor-pointer block">
+                      <Upload className="w-7 h-7 text-blue-600 mx-auto mb-1.5" />
+                      <span className="text-xs font-medium text-blue-600 hover:underline">
+                        {fileName || 'Trascina qui il file PVGIS (.pdf, .csv, .txt)'}
+                      </span>
+                      <p className="text-[11px] text-slate-400 mt-1">Accetta Report PDF ufficiali PVGIS o export orari CSV</p>
+                    </label>
+                  </div>
+
+                  {pdfMeta && (
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>Dati estratti dal Report PDF PVGIS:</span>
+                      </div>
+                      <p>• Potenza: <b>{pdfMeta.nominalPowerKw} kWp</b></p>
+                      {pdfMeta.yearlyKwh > 0 && <p>• Produzione annua: <b>{pdfMeta.yearlyKwh.toLocaleString('it-IT')} kWh</b></p>}
+                      <p>• Coordinate: <b>Lat {pdfMeta.latitude?.toFixed(2)}°, Lon {pdfMeta.longitude?.toFixed(2)}°</b></p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-xs text-slate-500 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
@@ -525,8 +563,8 @@ export default function SolarValuationView({ user }) {
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip
                         formatter={(val, name) => [
-                          name === 'ricavoEur' ? `€ ${val.toLocaleString('it-IT', { maximumFractionDigits: 0 })}` : `${val.toFixed(2)} €/MWh`,
-                          name === 'ricavoEur' ? 'Ricavi Totali' : 'Prezzo Catturato'
+                          name === 'revenueEur' ? `€ ${val.toLocaleString('it-IT', { maximumFractionDigits: 0 })}` : `${val.toFixed(2)} €/MWh`,
+                          name === 'revenueEur' ? 'Ricavi Totali' : 'Prezzo Catturato'
                         ]}
                       />
                       <Legend />

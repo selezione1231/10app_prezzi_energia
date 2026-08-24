@@ -1,10 +1,11 @@
 import React from 'react'
-import { Zap, Sun, BarChart3, Bookmark, LogOut, UserCheck } from 'lucide-react'
+import { Zap, Sun, BarChart3, Bookmark, Globe, LogOut, UserCheck } from 'lucide-react'
 
 export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
   const tabs = [
     { id: 'solar', label: '☀️ Valutazione FTV (PVGIS)', icon: Sun },
     { id: 'market', label: '📊 Mercato Zonale & 15m', icon: BarChart3 },
+    { id: 'api', label: '🔌 Connettori GME & API Live', icon: Globe },
     { id: 'simulations', label: '💾 Simulazioni Salvate', icon: Bookmark },
   ]
 
@@ -38,7 +39,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
                 <button
                   key={t.id}
                   onClick={() => setActiveTab(t.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
                     isActive
                       ? 'bg-blue-50 text-blue-700 font-semibold'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'

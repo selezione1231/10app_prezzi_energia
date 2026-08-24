@@ -4,13 +4,14 @@ import Login from './components/Auth/Login'
 import Navbar from './components/Layout/Navbar'
 import SolarValuationView from './components/SolarValuation/SolarValuationView'
 import MarketExplorerView from './components/MarketExplorer/MarketExplorerView'
+import ApiHubView from './components/ApiHub/ApiHubView'
 import SavedSimulationsView from './components/Simulations/SavedSimulationsView'
 import { Loader2 } from 'lucide-react'
 
 export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('solar') // 'solar' | 'market' | 'simulations'
+  const [activeTab, setActiveTab] = useState('solar') // 'solar' | 'market' | 'api' | 'simulations'
 
   useEffect(() => {
     // 1. Get initial session
@@ -60,6 +61,7 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'solar' && <SolarValuationView user={session.user} />}
         {activeTab === 'market' && <MarketExplorerView />}
+        {activeTab === 'api' && <ApiHubView />}
         {activeTab === 'simulations' && <SavedSimulationsView user={session.user} />}
       </main>
 
